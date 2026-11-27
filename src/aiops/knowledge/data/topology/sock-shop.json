@@ -1,0 +1,207 @@
+{
+  "system": "Sock Shop",
+  "key": "sock-shop",
+  "datasets": [
+    "RE1-SS",
+    "RE2-SS",
+    "RE3-SS"
+  ],
+  "source": "Weaveworks' microservices-demo architecture (RCAEval's Sock Shop records no traces, so no call was observed directly).",
+  "services": {
+    "front-end": {
+      "kind": "service",
+      "tech": "Node.js",
+      "description": "Web UI and API gateway for the browser: calls catalogue, carts, orders and user; keeps sessions in session-db. All user traffic enters here."
+    },
+    "catalogue": {
+      "kind": "service",
+      "tech": "Go",
+      "description": "The sock catalogue, stored in catalogue-db."
+    },
+    "catalogue-db": {
+      "kind": "database",
+      "tech": "MySQL",
+      "description": "Database of catalogue."
+    },
+    "carts": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Shopping carts, stored in carts-db."
+    },
+    "carts-db": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "Database of carts."
+    },
+    "orders": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Places orders: reads the customer, address and card from user and the items from carts, has payment authorise the amount, asks shipping to ship; stores orders in orders-db."
+    },
+    "orders-db": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "Database of orders."
+    },
+    "payment": {
+      "kind": "service",
+      "tech": "Go",
+      "description": "Authorises payments (mock; declines amounts above a set limit)."
+    },
+    "user": {
+      "kind": "service",
+      "tech": "Go",
+      "description": "Customer accounts, addresses, cards and login, stored in user-db."
+    },
+    "user-db": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "Database of user."
+    },
+    "shipping": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Accepts shipments from orders and publishes them to rabbitmq."
+    },
+    "queue-master": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Consumes shipment tasks from rabbitmq."
+    },
+    "rabbitmq": {
+      "kind": "queue",
+      "tech": "RabbitMQ",
+      "description": "Message queue between shipping and queue-master."
+    },
+    "rabbitmq-exporter": {
+      "kind": "monitoring",
+      "tech": "Prometheus exporter",
+      "description": "Exports rabbitmq's metrics; not on the request path."
+    },
+    "session-db": {
+      "kind": "cache",
+      "tech": "Redis",
+      "description": "Session store of front-end."
+    }
+  },
+  "calls": [
+    {
+      "from": "front-end",
+      "to": "catalogue",
+      "protocol": "HTTP",
+      "evidence": "documented"
+    },
+    {
+      "from": "front-end",
+      "to": "carts",
+      "protocol": "HTTP",
+      "evidence": "documented"
+    },
+    {
+      "from": "front-end",
+      "to": "orders",
+      "protocol": "HTTP",
+      "evidence": "documented"
+    },
+    {
+      "from": "front-end",
+      "to": "user",
+      "protocol": "HTTP",
+      "evidence": "documented"
+    },
+    {
+      "from": "front-end",
+      "to": "session-db",
+      "protocol": "Redis",
+      "evidence": "documented"
+    },
+    {
+      "from": "orders",
+      "to": "user",
+      "protocol": "HTTP",
+      "evidence": "documented"
+    },
+    {
+      "from": "orders",
+      "to": "carts",
+      "protocol": "HTTP",
+      "evidence": "documented"
+    },
+    {
+      "from": "orders",
+      "to": "payment",
+      "protocol": "HTTP",
+      "evidence": "documented"
+    },
+    {
+      "from": "orders",
+      "to": "shipping",
+      "protocol": "HTTP",
+      "evidence": "documented"
+    },
+    {
+      "from": "orders",
+      "to": "orders-db",
+      "protocol": "MongoDB",
+      "evidence": "documented"
+    },
+    {
+      "from": "carts",
+      "to": "carts-db",
+      "protocol": "MongoDB",
+      "evidence": "documented"
+    },
+    {
+      "from": "user",
+      "to": "user-db",
+      "protocol": "MongoDB",
+      "evidence": "documented"
+    },
+    {
+      "from": "catalogue",
+      "to": "catalogue-db",
+      "protocol": "MySQL",
+      "evidence": "documented"
+    },
+    {
+      "from": "shipping",
+      "to": "rabbitmq",
+      "protocol": "AMQP",
+      "evidence": "documented"
+    },
+    {
+      "from": "queue-master",
+      "to": "rabbitmq",
+      "protocol": "AMQP",
+      "evidence": "documented"
+    },
+    {
+      "from": "rabbitmq-exporter",
+      "to": "rabbitmq",
+      "protocol": "HTTP (metrics)",
+      "evidence": "documented"
+    }
+  ],
+  "entry_points": [
+    "front-end"
+  ],
+  "telemetry_names": {
+    "istio-init": "the Istio sidecar's init container (sets up traffic redirection when a pod starts), not a service"
+  },
+  "known_noise": [
+    {
+      "service": "queue-master",
+      "pattern": "Exception trying to launch/remove worker container ... /var/run/docker.sock",
+      "note": "logged every few seconds before the alert in every RE2-SS and RE3-SS case, with I/O exception and retry lines; the Docker socket is not mounted. Not a symptom by itself."
+    },
+    {
+      "service": "carts",
+      "pattern": "Dropped spans due to UnknownHostException(zipkin)",
+      "note": "logged before the alert in every RE2-SS case: carts tries to report traces to a zipkin host that does not exist. Not a symptom by itself."
+    }
+  ],
+  "notes": [
+    "Sock Shop records no traces in RCAEval; reason about calls from this topology, logs (front-end logs the requests it sends) and metrics.",
+    "A load generator (not in the telemetry) drives the traffic through front-end."
+  ]
+}

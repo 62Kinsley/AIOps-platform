@@ -1,0 +1,938 @@
+{
+  "system": "Train Ticket",
+  "key": "train-ticket",
+  "datasets": [
+    "RE1-TT",
+    "RE2-TT",
+    "RE3-TT"
+  ],
+  "source": "FudanSELab's Train Ticket. Service-to-service calls are those observed in the pre-alert traces of every RE2-TT and RE3-TT case; database links come from the services' MongoDB client spans and the naming convention ts-X-service -> ts-X-mongo; gateway links are the services whose spans start traces.",
+  "services": {
+    "ts-ui-dashboard": {
+      "kind": "gateway",
+      "tech": "nginx",
+      "description": "Web UI and API gateway: routes /api/v1/... requests to the services. Not traced, so requests appear as root spans of the services behind it. All user traffic enters here."
+    },
+    "ts-auth-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Login and JWT tokens; credentials in ts-auth-mongo."
+    },
+    "ts-user-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "User accounts."
+    },
+    "ts-verification-code-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Login captcha (verification codes)."
+    },
+    "ts-contacts-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Passengers' contacts."
+    },
+    "ts-travel-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Trips of high-speed trains (G and D numbers): trip search and remaining tickets."
+    },
+    "ts-travel2-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Trips of the other trains (K, T, Z numbers): trip search and remaining tickets."
+    },
+    "ts-ticketinfo-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Ticket information for a trip; forwards to ts-basic-service."
+    },
+    "ts-basic-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Aggregates the basic data of a trip: stations, train type, route and price."
+    },
+    "ts-station-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Stations (name and id lookups); the most frequently called service."
+    },
+    "ts-train-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Train types (seat counts, speed)."
+    },
+    "ts-route-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Routes: station sequences and distances."
+    },
+    "ts-price-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Price rates per route and train type."
+    },
+    "ts-config-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Global configuration values, e.g. seat allocation ratios."
+    },
+    "ts-seat-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Seat allocation and remaining-seat counts; reads orders to find sold seats."
+    },
+    "ts-order-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Orders of high-speed trains."
+    },
+    "ts-order-other-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Orders of the other trains."
+    },
+    "ts-preserve-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Books tickets on high-speed trains: checks security, contacts and the trip, takes a seat, creates the order, adds insurance, food and consignment."
+    },
+    "ts-preserve-other-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Books tickets on the other trains (same flow as ts-preserve-service)."
+    },
+    "ts-security-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Security checks before booking (limits on recent orders)."
+    },
+    "ts-assurance-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Travel insurance."
+    },
+    "ts-food-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Food orders for trips."
+    },
+    "ts-food-map-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Food stores at stations and food served on trains."
+    },
+    "ts-consign-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Luggage consignment."
+    },
+    "ts-consign-price-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Consignment prices."
+    },
+    "ts-inside-payment-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Payment inside the platform (account balance); calls ts-payment-service and updates the order's status."
+    },
+    "ts-payment-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Payment processing."
+    },
+    "ts-cancel-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Order cancellation and refunds."
+    },
+    "ts-rebook-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Ticket rebooking."
+    },
+    "ts-execute-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Ticket collection and check-in."
+    },
+    "ts-notification-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Order notifications (e-mail)."
+    },
+    "ts-route-plan-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Route planning (cheapest, quickest, fewest stops)."
+    },
+    "ts-travel-plan-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Travel plans that combine trips and transfers."
+    },
+    "ts-ticket-office-service": {
+      "kind": "service",
+      "description": "Ticket office locations."
+    },
+    "ts-news-service": {
+      "kind": "service",
+      "description": "News shown in the UI."
+    },
+    "ts-voucher-service": {
+      "kind": "service",
+      "description": "Travel vouchers; data in ts-voucher-mysql."
+    },
+    "ts-avatar-service": {
+      "kind": "service",
+      "description": "User avatars."
+    },
+    "ts-admin-basic-info-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Admin pages for stations, trains, configs, prices and contacts."
+    },
+    "ts-admin-order-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Admin pages for orders."
+    },
+    "ts-admin-route-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Admin pages for routes."
+    },
+    "ts-admin-travel-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Admin pages for trips."
+    },
+    "ts-admin-user-service": {
+      "kind": "service",
+      "tech": "Java (Spring Boot)",
+      "description": "Admin pages for users."
+    },
+    "ts-assurance-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-assurance-service."
+    },
+    "ts-auth-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-auth-service."
+    },
+    "ts-config-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-config-service."
+    },
+    "ts-consign-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-consign-service."
+    },
+    "ts-consign-price-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-consign-price-service."
+    },
+    "ts-contacts-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-contacts-service."
+    },
+    "ts-food-map-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-food-map-service."
+    },
+    "ts-food-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-food-service."
+    },
+    "ts-food-mysql": {
+      "kind": "database",
+      "tech": "MySQL",
+      "description": "MySQL database of ts-food-service."
+    },
+    "ts-inside-payment-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-inside-payment-service."
+    },
+    "ts-notification-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-notification-service."
+    },
+    "ts-order-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-order-service."
+    },
+    "ts-order-other-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-order-other-service."
+    },
+    "ts-payment-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-payment-service."
+    },
+    "ts-preserve-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-preserve-service."
+    },
+    "ts-preserve-other-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-preserve-other-service."
+    },
+    "ts-price-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-price-service."
+    },
+    "ts-route-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-route-service."
+    },
+    "ts-security-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-security-service."
+    },
+    "ts-station-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-station-service."
+    },
+    "ts-ticket-office-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-ticket-office-service."
+    },
+    "ts-train-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-train-service."
+    },
+    "ts-travel-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-travel-service."
+    },
+    "ts-travel2-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-travel2-service."
+    },
+    "ts-user-mongo": {
+      "kind": "database",
+      "tech": "MongoDB",
+      "description": "MongoDB database of ts-user-service."
+    },
+    "ts-voucher-mysql": {
+      "kind": "database",
+      "tech": "MySQL",
+      "description": "MySQL database of ts-voucher-service."
+    }
+  },
+  "calls": [
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-admin-basic-info-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-admin-travel-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-assurance-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-auth-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-consign-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-contacts-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-food-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-inside-payment-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-order-other-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-order-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-preserve-other-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-preserve-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-travel-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-ui-dashboard",
+      "to": "ts-travel2-service",
+      "protocol": "HTTP",
+      "evidence": "gateway"
+    },
+    {
+      "from": "ts-admin-basic-info-service",
+      "to": "ts-config-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-admin-basic-info-service",
+      "to": "ts-price-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-admin-travel-service",
+      "to": "ts-travel-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-admin-travel-service",
+      "to": "ts-travel2-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-basic-service",
+      "to": "ts-price-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-basic-service",
+      "to": "ts-route-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-basic-service",
+      "to": "ts-station-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-basic-service",
+      "to": "ts-train-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-consign-service",
+      "to": "ts-consign-price-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-food-service",
+      "to": "ts-food-map-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-food-service",
+      "to": "ts-station-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-food-service",
+      "to": "ts-travel-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-inside-payment-service",
+      "to": "ts-order-other-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-inside-payment-service",
+      "to": "ts-order-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-inside-payment-service",
+      "to": "ts-payment-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-order-other-service",
+      "to": "ts-station-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-order-service",
+      "to": "ts-station-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-assurance-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-contacts-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-food-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-order-other-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-seat-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-security-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-station-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-ticketinfo-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-travel2-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-user-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-assurance-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-contacts-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-food-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-order-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-seat-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-security-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-station-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-ticketinfo-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-travel-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-user-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-seat-service",
+      "to": "ts-config-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-seat-service",
+      "to": "ts-order-other-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-seat-service",
+      "to": "ts-order-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-seat-service",
+      "to": "ts-travel-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-seat-service",
+      "to": "ts-travel2-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-security-service",
+      "to": "ts-order-other-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-security-service",
+      "to": "ts-order-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-ticketinfo-service",
+      "to": "ts-basic-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel-service",
+      "to": "ts-order-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel-service",
+      "to": "ts-route-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel-service",
+      "to": "ts-seat-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel-service",
+      "to": "ts-ticketinfo-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel-service",
+      "to": "ts-train-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel2-service",
+      "to": "ts-order-other-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel2-service",
+      "to": "ts-route-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel2-service",
+      "to": "ts-seat-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel2-service",
+      "to": "ts-ticketinfo-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-travel2-service",
+      "to": "ts-train-service",
+      "protocol": "HTTP",
+      "evidence": "traces"
+    },
+    {
+      "from": "ts-assurance-service",
+      "to": "ts-assurance-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-auth-service",
+      "to": "ts-auth-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-config-service",
+      "to": "ts-config-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-consign-service",
+      "to": "ts-consign-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-consign-price-service",
+      "to": "ts-consign-price-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-contacts-service",
+      "to": "ts-contacts-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-food-map-service",
+      "to": "ts-food-map-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-food-service",
+      "to": "ts-food-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-food-service",
+      "to": "ts-food-mysql",
+      "protocol": "MySQL",
+      "evidence": "naming"
+    },
+    {
+      "from": "ts-inside-payment-service",
+      "to": "ts-inside-payment-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-notification-service",
+      "to": "ts-notification-mongo",
+      "protocol": "MongoDB",
+      "evidence": "naming"
+    },
+    {
+      "from": "ts-order-service",
+      "to": "ts-order-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-order-other-service",
+      "to": "ts-order-other-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-payment-service",
+      "to": "ts-payment-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-preserve-service",
+      "to": "ts-preserve-mongo",
+      "protocol": "MongoDB",
+      "evidence": "naming"
+    },
+    {
+      "from": "ts-preserve-other-service",
+      "to": "ts-preserve-other-mongo",
+      "protocol": "MongoDB",
+      "evidence": "naming"
+    },
+    {
+      "from": "ts-price-service",
+      "to": "ts-price-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-route-service",
+      "to": "ts-route-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-security-service",
+      "to": "ts-security-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-station-service",
+      "to": "ts-station-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-ticket-office-service",
+      "to": "ts-ticket-office-mongo",
+      "protocol": "MongoDB",
+      "evidence": "naming"
+    },
+    {
+      "from": "ts-train-service",
+      "to": "ts-train-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-travel-service",
+      "to": "ts-travel-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-travel2-service",
+      "to": "ts-travel2-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-user-service",
+      "to": "ts-user-mongo",
+      "protocol": "MongoDB",
+      "evidence": "db-client-spans"
+    },
+    {
+      "from": "ts-voucher-service",
+      "to": "ts-voucher-mysql",
+      "protocol": "MySQL",
+      "evidence": "naming"
+    }
+  ],
+  "entry_points": [
+    "ts-ui-dashboard"
+  ],
+  "telemetry_names": {
+    "istio-init": "the Istio sidecar's init container (sets up traffic redirection when a pod starts), not a service"
+  },
+  "known_noise": [
+    {
+      "service": "ts-inside-payment-service",
+      "pattern": "[Inside Payment Service][Pay] Error. Order status Not allowed to Pay.",
+      "note": "logged before the alert in 88 of 89 RE2-TT cases with logs (the workload pays for orders that are not payable). Not a symptom by itself."
+    }
+  ],
+  "notes": [
+    "The RCAEval workload exercises only part of Train Ticket. These services recorded no spans before the alert, so their calls are unknown: ts-admin-order-service, ts-admin-route-service, ts-admin-user-service, ts-avatar-service, ts-cancel-service, ts-execute-service, ts-news-service, ts-notification-service, ts-rebook-service, ts-route-plan-service, ts-ticket-office-service, ts-travel-plan-service, ts-verification-code-service, ts-voucher-service.",
+    "Train Ticket records no span status codes, so traces cannot show errors; use logs.",
+    "Each ts-X-service stores its data in ts-X-mongo (or ts-X-mysql); a slow database shows up as slow repository/Mongo spans (e.g. 'find ts.station') of its service."
+  ]
+}
