@@ -1,0 +1,176 @@
+{
+  "system": "Online Boutique",
+  "key": "online-boutique",
+  "datasets": [
+    "RE1-OB",
+    "RE2-OB",
+    "RE3-OB"
+  ],
+  "source": "Google's microservices-demo architecture. Every service-to-service call below was also observed in the pre-alert traces of RE2-OB and RE3-OB; cartservice -> redis is documented only (Redis calls are not traced).",
+  "services": {
+    "frontend": {
+      "kind": "service",
+      "tech": "Go",
+      "description": "Web frontend: serves the shop's HTTP pages and calls most backends for every page view. All user traffic enters here."
+    },
+    "adservice": {
+      "kind": "service",
+      "tech": "Java",
+      "description": "Serves text ads for product and cart pages."
+    },
+    "cartservice": {
+      "kind": "service",
+      "tech": "C#",
+      "description": "Stores and retrieves the items in users' carts, in redis."
+    },
+    "checkoutservice": {
+      "kind": "service",
+      "tech": "Go",
+      "description": "Places orders: fetches the cart, prices the items, charges the card, ships, sends the confirmation e-mail and empties the cart."
+    },
+    "currencyservice": {
+      "kind": "service",
+      "tech": "Node.js",
+      "description": "Converts prices between currencies; the busiest service (called for every displayed price)."
+    },
+    "emailservice": {
+      "kind": "service",
+      "tech": "Python",
+      "description": "Sends order confirmation e-mails (mock)."
+    },
+    "paymentservice": {
+      "kind": "service",
+      "tech": "Node.js",
+      "description": "Charges credit cards (mock) and returns a transaction id."
+    },
+    "productcatalogservice": {
+      "kind": "service",
+      "tech": "Go",
+      "description": "Lists, searches and returns products from a JSON catalogue; called by frontend, checkoutservice and recommendationservice."
+    },
+    "recommendationservice": {
+      "kind": "service",
+      "tech": "Python",
+      "description": "Recommends products for the cart; queries productcatalogservice."
+    },
+    "shippingservice": {
+      "kind": "service",
+      "tech": "Go",
+      "description": "Quotes shipping costs and ships orders (mock)."
+    },
+    "redis": {
+      "kind": "cache",
+      "tech": "Redis",
+      "description": "redis-cart: the cart store behind cartservice."
+    }
+  },
+  "calls": [
+    {
+      "from": "frontend",
+      "to": "adservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "frontend",
+      "to": "cartservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "frontend",
+      "to": "checkoutservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "frontend",
+      "to": "currencyservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "frontend",
+      "to": "productcatalogservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "frontend",
+      "to": "recommendationservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "frontend",
+      "to": "shippingservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "checkoutservice",
+      "to": "cartservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "checkoutservice",
+      "to": "currencyservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "checkoutservice",
+      "to": "emailservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "checkoutservice",
+      "to": "paymentservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "checkoutservice",
+      "to": "productcatalogservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "checkoutservice",
+      "to": "shippingservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "recommendationservice",
+      "to": "productcatalogservice",
+      "protocol": "gRPC",
+      "evidence": "traces"
+    },
+    {
+      "from": "cartservice",
+      "to": "redis",
+      "protocol": "Redis",
+      "evidence": "documented"
+    }
+  ],
+  "entry_points": [
+    "frontend"
+  ],
+  "telemetry_names": {
+    "frontend-external": "the external LoadBalancer Service in front of frontend; its metrics describe traffic reaching frontend, not a separate workload",
+    "main": "an unidentified container in the RCAEval telemetry, not part of the Online Boutique architecture",
+    "frontend-check": "an unidentified container in the RCAEval telemetry, not part of the Online Boutique architecture",
+    "PassthroughCluster": "an Istio/Envoy virtual cluster (traffic to destinations outside the mesh), not a service",
+    "InboundPassthroughClusterIpv4": "an Istio/Envoy virtual cluster (inbound traffic without a matching service), not a service",
+    "istio-init": "the Istio sidecar's init container (sets up traffic redirection when a pod starts), not a service"
+  },
+  "known_noise": [],
+  "notes": [
+    "In RCAEval's traces, adservice, cartservice and shippingservice record no spans of their own: their latency and errors show up only in their callers' client spans, e.g. frontend's hipstershop.CartService/GetCart.",
+    "A load generator (not in the telemetry) drives the traffic through frontend.",
+    "Span status codes are gRPC codes (0 = OK); a few spans carry HTTP codes."
+  ]
+}

@@ -8,10 +8,13 @@ dependencies = [
     "pandas>=2.1",
     "pyarrow>=14",
     "huggingface_hub>=0.23",
+    "mcp>=2.3,<3",
 ]
 
 [project.scripts]
 aiops-data = "aiops.data.cli:main"
+aiops-monitoring-server = "aiops.monitoring.server:main"
+aiops-knowledge-server = "aiops.knowledge.server:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]

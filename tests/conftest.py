@@ -99,3 +99,77 @@ def build_raw_mirror(root: Path) -> DataLayout:
 @pytest.fixture
 def layout(tmp_path: Path) -> DataLayout:
     return build_raw_mirror(tmp_path / "data")
+
+
+# --------------------------------------------------------------------------- Phase 2 incident
+
+# The case that gets a planted incident: cartservice slows down 10x after the alert.
+PLANTED = "re2ob_cartservice_cpu_1"
+PLANTED_ERROR = "ERROR connection refused to cartservice:7070 (attempt {})"
+
+
+def _incident_traces(start: int, inject: int) -> pd.DataFrame:
+    """One trace every 2 s: frontend -> cartservice (traced on both sides) and frontend ->
+    checkoutservice (no spans of its own, like Online Boutique's uninstrumented services).
+    After the alert the cartservice span takes 10 ms instead of 1 ms, and every third client
+    span to it fails with gRPC code 14."""
+    rows = []
+    for k, t in enumerate(range(start, start + DURATION, 2)):
+        after = t >= inject
+        server = 10_000 if after else 1_000
+        status = 14 if after and k % 3 == 0 else 0
+        tid, sid, t_us = f"{k:032x}", f"{k:012x}", t * 1_000_000
+        rows += [
+            (tid, sid + "0001", None, "frontendservice", None, "frontend", t_us, server + 5_000, None),
+            (tid, sid + "0002", sid + "0001", "frontendservice", "GetCart",
+             "hipstershop.CartService/GetCart", t_us + 100, server + 500, status),
+            (tid, sid + "0003", sid + "0002", "cartservice", "GetCart",
+             "/hipstershop.CartService/GetCart", t_us + 300, server, 0),
+            (tid, sid + "0004", sid + "0001", "frontendservice", "PlaceOrder",
+             "hipstershop.CheckoutService/PlaceOrder", t_us + server + 1_000, 2_000, 0),
+        ]
+    frame = pd.DataFrame(rows, columns=["traceID", "spanID", "parentSpanID", "serviceName",
+                                        "methodName", "operationName", "startTime", "duration",
+                                        "statusCode"])
+    frame["statusCode"] = frame["statusCode"].astype("Int64")
+    frame["startTimeMillis"] = frame["startTime"] // 1000
+    frame["time"] = "21:24"
+    return frame
+
+
+def plant_incident(layout: DataLayout) -> None:
+    """CPU +20 for cartservice after the alert, a new error log template in frontend, slow
+    cartservice spans, and a metric column only this case has (cartservice_diskio)."""
+    case_dir = layout.raw / PLANTED
+    inject = int((case_dir / "inject_time.txt").read_text())
+    metrics = pd.read_parquet(case_dir / "metrics.parquet")
+    metrics.loc[metrics["time"] >= inject, "cartservice_cpu"] += 20.0
+    metrics["cartservice_diskio"] = 0.0
+    metrics.to_parquet(case_dir / "metrics.parquet", index=False)
+    logs = pd.read_parquet(case_dir / "logs.parquet")
+    extra = pd.DataFrame({"timestamp": [inject + 5 + i for i in range(6)],
+                          "container_name": "frontend",
+                          "message": [PLANTED_ERROR.format(i) for i in range(6)]})
+    pd.concat([logs, extra], ignore_index=True).to_parquet(case_dir / "logs.parquet", index=False)
+    _incident_traces(inject - INJECT_OFFSET, inject).to_parquet(case_dir / "traces.parquet",
+                                                               index=False)
+
+
+@pytest.fixture(scope="session")
+def incident_layout(tmp_path_factory) -> DataLayout:
+    """Blind views of RE2-OB (with the planted incident) and RE3-SS, built once per session."""
+    from aiops.data.blind import export_dataset
+
+    layout = build_raw_mirror(tmp_path_factory.mktemp("incident") / "data")
+    plant_incident(layout)
+    for dataset in ("RE2-OB", "RE3-SS"):
+        export_dataset(dataset, layout)
+    return layout
+
+
+@pytest.fixture(scope="session")
+def planted_case_id(incident_layout) -> str:
+    from aiops.data.ground_truth import load_labels
+
+    labels = load_labels(incident_layout.labels, "RE2-OB")
+    return labels.index[labels["source_case"] == PLANTED][0]

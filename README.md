@@ -7,6 +7,9 @@ cases from Online Boutique, Sock Shop and Train Ticket, with metrics, logs and t
 **Phase 1 — RCAEval data pipeline:** download the cases, read metrics, logs and
 traces into pandas, and isolate the ground truth so an RCA method can't see the answer.
 
+**Phase 2 — MCP servers:** a Monitoring server and a Knowledge server give an LLM agent
+seven read-only tools to investigate one case ([below](#phase-2--mcp-servers)).
+
 ## Quickstart
 
 ```bash
@@ -15,6 +18,8 @@ uv run aiops-data download --all          # 735 cases, 3.4 GB (or: -d RE2-OB, --
 uv run aiops-data build                   # blind views + ground-truth tables + leakage audit
 uv run aiops-data inspect                 # what is downloaded / built
 uv run aiops-data inspect RE2-OB-0078b4ee # load one case's metrics, logs and traces
+uv run aiops-monitoring-server            # MCP servers (stdio); see Phase 2 below
+uv run aiops-knowledge-server
 uv run pytest
 ```
 
@@ -129,6 +134,66 @@ method could exploit (⚠ = flagged):
   log messages embed them.
 
 The full audit for each dataset is in `data/labels/<DATASET>.json`.
+
+## Phase 2 — MCP servers
+
+Two [MCP](https://modelcontextprotocol.io) servers (Python SDK 2.x) give an agent what an
+on-call engineer would use: telemetry of the incident, and knowledge about the system.
+
+| Server | Tool | Answers |
+|---|---|---|
+| Monitoring | `get_incident_overview` | System, alert time, window, which telemetry exists, services and their metrics, root-cause candidates |
+| | `detect_anomalies` | Metric series ranked by robust z-score against their own pre-alert baseline, with onset times and a per-service summary |
+| | `query_metrics` | Downsampled time series of a service's metrics, or of one metric across services |
+| | `search_logs` | Log templates whose frequency changed after the alert (new errors, restarts, services that went quiet); regex search |
+| | `query_traces` | Latency and error rate per operation and per service-to-service call, caller side vs callee side; one trace as a call tree |
+| Knowledge | `get_service_topology` | Services, who calls whom (with evidence), transitive dependencies and dependents, known background log noise |
+| | `search_runbooks` | BM25 search over 9 runbooks: triage workflow, fault propagation, and one per fault type (CPU, memory, disk, delay, loss, socket, code) |
+
+```bash
+uv run aiops-monitoring-server                    # stdio, reads $AIOPS_DATA_DIR (or --data-dir)
+uv run aiops-monitoring-server --common-metrics   # hide the column-presence shortcut
+uv run aiops-knowledge-server
+uv run aiops-monitoring-server --transport streamable-http --port 8001   # or over HTTP
+
+# Try the tools in Claude Code, or in the MCP Inspector web UI:
+claude mcp add aiops-monitoring -e AIOPS_DATA_DIR=$HOME/aiops-data -- uv run --project "$PWD" aiops-monitoring-server
+claude mcp add aiops-knowledge -- uv run --project "$PWD" aiops-knowledge-server
+npx @modelcontextprotocol/inspector uv run aiops-monitoring-server
+```
+
+The tool logic is plain Python, usable without MCP:
+
+```python
+from aiops.monitoring import MonitoringService
+from aiops.knowledge import KnowledgeBase
+
+MonitoringService().detect_anomalies("RE2-OB-0078b4ee", top_k=5)
+KnowledgeBase().service_topology("Online Boutique", "cartservice")
+```
+
+**Conventions.** Every monitoring tool takes a case id. Times in requests and results are
+seconds relative to the alert (RCAEval's inject time), negative before it; the part of a
+window before the alert is the baseline. Results are compact JSON, rounded to 4 significant
+digits and bounded (top-k lists, at most 30 series per call): with the default limits a call
+costs at most about 3k tokens, and on the real data every tool answers in under 1.5 s. A bad argument (unknown case,
+service or metric, empty window) comes back as a tool error that names the valid choices.
+
+**Isolation.** The Monitoring server opens cases only through `BlindDataset`. No tool lists
+case ids: other cases' inject times would reveal labels through the injection order (see
+above). With `--common-metrics` it exposes only the metric columns that every case of the
+dataset has. The Knowledge server reads no case data at all. Its topology comes from each
+system's published architecture and, for Train Ticket, from the calls seen in the pre-alert
+traces of all RE2-TT and RE3-TT cases; every call records its evidence (`traces`,
+`documented`, `db-client-spans`, `naming`, `gateway`). Its runbooks describe fault types in
+general terms. A test checks that no knowledge file names a case, a case id or a label.
+
+**Tests.** `tests/test_monitoring.py` runs the five monitoring tools on a synthetic case with
+a planted incident (cartservice CPU +20, slow spans, a new error log). `tests/test_knowledge.py`
+covers topology queries and runbook ranking. `tests/test_mcp_servers.py` calls all seven tools
+through an MCP client, in process and over stdio. `tests/test_mcp_real_data.py` runs them on
+one real case per dataset, checks the size budget, and checks the topology against the
+traces (skipped without data).
 
 ## Troubleshooting
 
