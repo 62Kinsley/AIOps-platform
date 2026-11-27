@@ -1,0 +1,17 @@
+# Downloaded benchmark data and everything derived from it (several GB): ./data unless
+# AIOPS_DATA_DIR points elsewhere. Anchored, so it does not match the src/**/data/ packages.
+/data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv*
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
