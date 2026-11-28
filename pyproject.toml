@@ -15,6 +15,7 @@ dependencies = [
 aiops-data = "aiops.data.cli:main"
 aiops-monitoring-server = "aiops.monitoring.server:main"
 aiops-knowledge-server = "aiops.knowledge.server:main"
+aiops-eval = "aiops.evaluation.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]
