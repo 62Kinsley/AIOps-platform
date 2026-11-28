@@ -10,6 +10,9 @@ traces into pandas, and isolate the ground truth so an RCA method can't see the 
 **Phase 2 — MCP servers:** a Monitoring server and a Knowledge server give an LLM agent
 seven read-only tools to investigate one case ([below](#phase-2--mcp-servers)).
 
+**Evaluation:** `aiops-eval` scores any RCA method the way RCAEval does, with a fixed
+dev/test split and two baselines that need no LLM ([below](#evaluation-and-baselines)).
+
 ## Quickstart
 
 ```bash
@@ -20,6 +23,7 @@ uv run aiops-data inspect                 # what is downloaded / built
 uv run aiops-data inspect RE2-OB-0078b4ee # load one case's metrics, logs and traces
 uv run aiops-monitoring-server            # MCP servers (stdio); see Phase 2 below
 uv run aiops-knowledge-server
+uv run aiops-eval run anomaly             # score the no-LLM baseline on every case
 uv run pytest
 ```
 
@@ -194,6 +198,81 @@ covers topology queries and runbook ranking. `tests/test_mcp_servers.py` calls a
 through an MCP client, in process and over stdio. `tests/test_mcp_real_data.py` runs them on
 one real case per dataset, checks the size budget, and checks the topology against the
 traces (skipped without data).
+
+## Evaluation and baselines
+
+`aiops-eval` runs an RCA method over the blind view, one case at a time, and scores it
+the way RCAEval does.
+
+```bash
+uv run aiops-eval run anomaly                            # every built dataset, 735 cases (~15 s)
+uv run aiops-eval run anomaly -d RE2-OB --split dev --limit 5
+uv run aiops-eval score anomaly --split test --by-fault  # re-score a finished run
+```
+
+**Scores.** Per dataset, AC@k is the share of cases whose root cause is in the method's
+top k, and Avg@5 is the mean of AC@1 to AC@5 (RCAEval `benchmark/evaluation.py`). Service
+names follow RCAEval's rules: a ranked name counts as the service before its first
+underscore, with `-db` removed, and only a service's first appearance counts. `fine` is the
+metric level: the answer is the root-cause service plus its fault's indicator (cpu, mem,
+socket, diskio, or latency for delay and loss), and `latency-90` counts as `latency`. RE3's
+code-level faults have no indicator, so they are scored at the service level only.
+`random AC@1` is what a random ranking of the candidate services would score.
+
+**Splits.** `--split dev` takes one case per (root-cause service, fault) group, the one
+with the smallest id, and `test` is the rest (543 of the 735 cases). Tune a method on dev
+and report test. The evaluator makes the split from the labels; a method only ever sees
+the case in front of it.
+
+**Runs.** A run lives in `$AIOPS_DATA_DIR/runs/<name>/`. `predictions.jsonl` gets one line
+per case as it finishes, so an interrupted run resumes. A case whose method raised counts
+as a miss and runs again next time. Scoring adds `scores.json` (summaries for all cases, dev
+and test) and `case_scores.csv`, which contain the ground truth, so keep agents away from
+`runs/` as from `labels/`. A method has
+a `name`, `params` and `rank(case) -> Prediction`. The runner and the baselines never
+import the labels module, and a test checks that.
+
+**Baselines** (test split, 543 cases). `anomaly` ranks services by their most anomalous
+metric series, using the robust z-score behind `detect_anomalies`. `anomaly-common` does
+the same on the metric columns that every case of the dataset has.
+
+| Dataset | `anomaly` AC@1 | AC@3 | Avg@5 | fine Avg@5 | `anomaly-common` AC@1 | Avg@5 | random AC@1 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| RE1-OB | 0.88 | 0.94 | 0.93 | 0.85 | 0.72 | 0.80 | 0.05 |
+| RE1-SS | 0.95 | 0.99 | 0.98 | 0.79 | 0.96 | 0.99 | 0.08 |
+| RE1-TT | 0.73 | 0.91 | 0.89 | 0.59 | 0.76 | 0.90 | 0.02 |
+| RE2-OB | 0.85 | 0.97 | 0.95 | 0.74 | 0.90 | 0.97 | 0.06 |
+| RE2-SS | 0.87 | 0.98 | 0.96 | 0.75 | 0.97 | 0.99 | 0.08 |
+| RE2-TT | 0.85 | 0.95 | 0.92 | 0.61 | 0.83 | 0.92 | 0.01 |
+| RE3-OB | 0.60 | 0.80 | 0.76 | – | 0.60 | 0.76 | 0.04 |
+| RE3-SS | 0.48 | 0.95 | 0.85 | – | 0.43 | 0.84 | 0.05 |
+| RE3-TT | 0.68 | 1.00 | 0.90 | – | 0.77 | 0.95 | 0.01 |
+| Mean | 0.76 | 0.94 | 0.90 | 0.72 | 0.77 | 0.90 | 0.05 |
+
+What the numbers say:
+
+- **Resource faults are easy for a metric scorer.** On RE1 and RE2 the stressed
+  container's own CPU, memory, disk or socket series stands out. Over all 90 RE2-TT cases,
+  the baseline's service-level Avg@5 per fault (cpu 0.99, mem 1.00, disk 1.00, socket
+  0.99, delay 0.95, loss 0.65) matches or beats the BARO results in RCAEval's README
+  (0.72, 0.99, 1.0, 0.83, 0.63, 0.64).
+- **It is not a leak.** Scored against another case's answer, the same predictions get
+  AC@1 0.14–0.34, about one over the number of root-cause services in the dataset.
+- **It doesn't rely on column presence.** Restricting it to the common columns leaves the
+  mean unchanged. RE1-OB drops (only 24 of its 95 columns are common) and RE2-SS gains.
+- **Its weak spots are where an agent can help.** These are network loss (RE2-TT loss
+  Avg@5 0.65), RE3's code-level faults (AC@1 0.43–0.77) and fault propagation.
+  Error-count series that were zero before the alert get the capped score of 1000, so
+  callers that start logging errors outrank the faulty service. With RCAEval's ±10-minute
+  windows, which leave more series at zero before the alert, RE3-TT AC@1 falls from 0.67
+  to 0.07. The baseline uses the whole window (12–30 minutes, depending on the dataset).
+- **The metric level is harder** (mean fine Avg@5 0.72). The right service is often found
+  through another metric than its fault's indicator. Over all RE2-TT cases, the fine
+  Avg@5 is 0.17 for memory faults and 0.29 for socket faults.
+
+**Tests.** `tests/test_evaluation.py` covers RCAEval's scoring rules, the split, the
+runner's resume and error handling, label isolation of the method side, and the command
+line on the synthetic mirror.
 
 ## Troubleshooting
 
